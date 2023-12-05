@@ -1,42 +1,38 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Task = Workshop.Example.Api.Models.Task;
+using Workshop.Example.Api.Helpers;
 
 namespace Workshop.Example.Api.Controllers
 {
     public class TasksController : ControllerBase
     {
-        [HttpPost]
-        public ActionResult<Task> CreateTask(Task task)
+        private readonly DatabaseHelper _databaseHelper;
+
+        public TasksController(DatabaseHelper databaseHelper)
         {
-            return Ok(new Task()
-            { 
-                Id = task.Id, 
-                Title = task.Title, 
-                Description = $"Task Description: {task.Description}.",
-                IsCompleted = false
-            });
+            _databaseHelper = databaseHelper;
+        }
+
+        [HttpPost]
+        [Route("api/tasks/add")]
+        public async Task<ActionResult<int>> CreateTask(Task task)
+        {
+            task.IsCompleted = task.IsCompleted.HasValue ? task.IsCompleted : false;
+            return Ok(await _databaseHelper.CreateTaskAsync(task));
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Task>> GetAllTasks()
+        [Route("api/tasks/get")]
+        public ActionResult<List<Task>> GetAllTasks()
         {
-            var tasks = new List<Task>();
-            for (int i = 0; i < 10; i++)
-            {
-                tasks.Add(new Task()
-                {
-                    Id = i,
-                    Title = $"Task {i}",
-                    Description = $"Task Description: {i}.",
-                    IsCompleted = false
-                });
-            }
-            return Ok(tasks);
+            return Ok( _databaseHelper.GetAllTasks());
         }
 
-        [HttpDelete("{id}")]
-        public ActionResult<Task> DeleteTask()
+        [HttpDelete]
+        [Route("api/tasks/delete/{id}")]
+        public ActionResult<Task> DeleteTask(int id)
         {
+            _databaseHelper.DeleteTask(id);
             return NoContent();
         }
     }
