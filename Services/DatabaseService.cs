@@ -1,18 +1,17 @@
 ﻿using Microsoft.Data.SqlClient;
-using Microsoft.VisualBasic;
+using Workshop.Example.Api.Interfaces;
 using Workshop.Example.Api.Models.Requests;
 using Workshop.Example.Api.Models.Responses;
-using static Azure.Core.HttpHeader;
 using Task = Workshop.Example.Api.Models.Common.Task;
 
-namespace Workshop.Example.Api.Helpers
+namespace Workshop.Example.Api.Services
 {
-    public class DatabaseHelper
+    public class DatabaseService : IDatabaseService
     {
         private readonly IConfiguration _configuration;
         private const string CREATIONSTATUS = "Created";
 
-        public DatabaseHelper(IConfiguration configuration)
+        public DatabaseService(IConfiguration configuration)
         {
             _configuration = configuration;
         }
@@ -24,7 +23,7 @@ namespace Workshop.Example.Api.Helpers
             using SqlConnection connection = new(connectionString);
             connection.Open();
 
-            string query =  "INSERT INTO Tasks (" +
+            string query = "INSERT INTO Tasks (" +
                             "   Title, " +
                             "   Description, " +
                             "   Assignee, " +
@@ -71,21 +70,21 @@ namespace Workshop.Example.Api.Helpers
             };
         }
 
-        public IEnumerable<Task> GetAllTasks()
+        public async Task<IEnumerable<Task>> GetAllTasksAsync()
         {
             // Implement DB interaction to get all tasks
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
             using SqlConnection connection = new(connectionString);
-            connection.Open();
+            await connection.OpenAsync();
 
             string query = "SELECT * FROM Tasks";
 
             using SqlCommand command = new(query, connection);
-            using SqlDataReader reader = command.ExecuteReader();
+            using SqlDataReader reader = await command.ExecuteReaderAsync();
             List<Task> tasks = new();
             if (reader.HasRows)
             {
-                while (reader.Read())
+                while (await reader.ReadAsync())
                 {
                     Task task = new()
                     {
@@ -108,7 +107,7 @@ namespace Workshop.Example.Api.Helpers
             return tasks;
         }
 
-        public DeleteTaskResponse DeleteTask(DeleteTaskRequest deleteTaskRequest)
+        public async Task<DeleteTaskResponse> DeleteTaskAsync(DeleteTaskRequest deleteTaskRequest)
         {
             // Implement DB interaction to delete a task by id
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
@@ -120,7 +119,7 @@ namespace Workshop.Example.Api.Helpers
             using SqlCommand command = new(query, connection);
             command.Parameters.AddWithValue("@Id", deleteTaskRequest.Id);
 
-            command.ExecuteNonQuery();
+            await command.ExecuteNonQueryAsync();
 
             return new DeleteTaskResponse
             {
@@ -130,7 +129,7 @@ namespace Workshop.Example.Api.Helpers
             };
         }
 
-        public UpdatetaskResponse UpdateTask(UpdateTaskRequest updateTaskRequest)
+        public async Task<UpdateTaskResponse> UpdateTaskAsync(UpdateTaskRequest updateTaskRequest)
         {
             // Implement DB interaction to update a task
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
@@ -155,9 +154,9 @@ namespace Workshop.Example.Api.Helpers
             command.Parameters.AddWithValue("@Id", updateTaskRequest.Id);
             command.CommandText = query;
 
-            command.ExecuteNonQuery();
+            await command.ExecuteNonQueryAsync();
 
-            return new UpdatetaskResponse
+            return new UpdateTaskResponse
             {
                 Result = true,
                 ResultMessage = $"Task [ID: {updateTaskRequest.Id}] updated successfully!",
@@ -165,12 +164,12 @@ namespace Workshop.Example.Api.Helpers
             };
         }
 
-        public GetTaskResponse GetTask(GetTaskRequest getTaskRequest)
+        public async Task<GetTaskResponse> GetTaskAsync(GetTaskRequest getTaskRequest)
         {
             // Implement DB interaction to get a task by a combination of not null properties of the recieved task
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
             using SqlConnection connection = new(connectionString);
-            connection.Open();
+            await connection.OpenAsync();
 
             string query = "SELECT * FROM Tasks WHERE";
             var whereClauses = new List<string>();
@@ -193,11 +192,11 @@ namespace Workshop.Example.Api.Helpers
                 }
             }
 
-            using SqlDataReader reader = command.ExecuteReader();
+            using SqlDataReader reader = await command.ExecuteReaderAsync();
             GetTaskResponse result = new();
             if (reader.HasRows)
             {
-                while (reader.Read())
+                while (await reader.ReadAsync())
                 {
                     result.Id = reader.GetInt32(reader.GetOrdinal("Id"));
                     result.Title = reader.GetString(reader.GetOrdinal("Title"));

@@ -3,51 +3,52 @@ using Task = Workshop.Example.Api.Models.Common.Task;
 using Workshop.Example.Api.Helpers;
 using Workshop.Example.Api.Models.Requests;
 using Workshop.Example.Api.Models.Responses;
+using Workshop.Example.Api.Interfaces;
 
 namespace Workshop.Example.Api.Controllers
 {
     public class TasksController : ControllerBase
     {
-        private readonly DatabaseHelper _databaseHelper;
+        private readonly ITasksService _tasksService;
 
-        public TasksController(DatabaseHelper databaseHelper)
+        public TasksController(ITasksService tasksService)
         {
-            _databaseHelper = databaseHelper;
+            _tasksService = tasksService;
         }
 
         [HttpPost]
         [Route("api/tasks/add")]
         public async Task<ActionResult<CreateTaskResponse>> CreateTask([FromBody] CreateTaskRequest createTaskRequest)
         {
-            return Ok(await _databaseHelper.CreateTaskAsync(createTaskRequest));
+            return Ok(await _tasksService.CreateTaskAsync(createTaskRequest));
         }
 
         [HttpGet]
         [Route("api/tasks/get")]
-        public ActionResult<List<Task>> GetAllTasks()
+        public async Task<ActionResult<List<Task>>> GetAllTasks()
         {
-            return Ok( _databaseHelper.GetAllTasks());
+            return Ok(await _tasksService.GetAllTasksAsync());
         }
 
         [HttpPost]
         [Route("api/tasks/delete")]
-        public ActionResult<DeleteTaskResponse> DeleteTask([FromBody] DeleteTaskRequest deleteTaskRequest)
+        public async Task<ActionResult<DeleteTaskResponse>> DeleteTask([FromBody] DeleteTaskRequest deleteTaskRequest)
         {
-            return Ok(_databaseHelper.DeleteTask(deleteTaskRequest));
+            return Ok(await _tasksService.DeleteTaskAsync(deleteTaskRequest));
         }
 
         [HttpPost]
         [Route("api/tasks/update")]
-        public ActionResult<UpdatetaskResponse> UpdateTask([FromBody] UpdateTaskRequest updateTaskRequest)
+        public async Task<ActionResult<UpdateTaskResponse>> UpdateTask([FromBody] UpdateTaskRequest updateTaskRequest)
         {
-            return Ok(_databaseHelper.UpdateTask(updateTaskRequest));
+            return Ok(await _tasksService.UpdateTaskAsync(updateTaskRequest));
         }
 
         [HttpPost]
         [Route("api/tasks/search")]
-        public ActionResult<GetTaskResponse> GetTask([FromBody] GetTaskRequest getTaskRequest)
+        public async Task<ActionResult<GetTaskResponse>> GetTask([FromBody] GetTaskRequest getTaskRequest)
         {
-            return Ok(_databaseHelper.GetTask(getTaskRequest));
+            return Ok(await _tasksService.SearchTasksAsync(getTaskRequest));
         }
     }
 }

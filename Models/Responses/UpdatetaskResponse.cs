@@ -1,6 +1,6 @@
 ﻿namespace Workshop.Example.Api.Models.Responses
 {
-    public class UpdatetaskResponse
+    public class UpdateTaskResponse
     {
         public bool Result { get; set; }
         public string ResultMessage { get; set; }
