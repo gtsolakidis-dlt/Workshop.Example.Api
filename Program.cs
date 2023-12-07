@@ -1,4 +1,6 @@
-using Workshop.Example.Api.Helpers;
+
+using Workshop.Example.Api.Interfaces;
+using Workshop.Example.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +11,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<DatabaseHelper>();
+builder.Services.AddScoped<IDatabaseService, DatabaseService>();
+builder.Services.AddScoped<ITasksService, TasksService>();
 
 var app = builder.Build();
 
