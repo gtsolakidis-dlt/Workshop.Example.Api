@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Task = Workshop.Example.Api.Models.Task;
+using Task = Workshop.Example.Api.Models.Common.Task;
 using Workshop.Example.Api.Helpers;
+using Workshop.Example.Api.Models.Requests;
+using Workshop.Example.Api.Models.Responses;
 
 namespace Workshop.Example.Api.Controllers
 {
@@ -15,10 +17,9 @@ namespace Workshop.Example.Api.Controllers
 
         [HttpPost]
         [Route("api/tasks/add")]
-        public async Task<ActionResult<int>> CreateTask(Task task)
+        public async Task<ActionResult<CreateTaskResponse>> CreateTask([FromBody] CreateTaskRequest createTaskRequest)
         {
-            task.IsCompleted = task.IsCompleted.HasValue ? task.IsCompleted : false;
-            return Ok(await _databaseHelper.CreateTaskAsync(task));
+            return Ok(await _databaseHelper.CreateTaskAsync(createTaskRequest));
         }
 
         [HttpGet]
@@ -28,27 +29,25 @@ namespace Workshop.Example.Api.Controllers
             return Ok( _databaseHelper.GetAllTasks());
         }
 
-        [HttpDelete]
+        [HttpPost]
         [Route("api/tasks/delete")]
-        public ActionResult<Task> DeleteTask(int id)
+        public ActionResult<DeleteTaskResponse> DeleteTask([FromBody] DeleteTaskRequest deleteTaskRequest)
         {
-            _databaseHelper.DeleteTask(id);
-            return NoContent();
+            return Ok(_databaseHelper.DeleteTask(deleteTaskRequest));
         }
 
-        [HttpPut]
+        [HttpPost]
         [Route("api/tasks/update")]
-        public ActionResult<Task> UpdateTask(Task task)
+        public ActionResult<UpdatetaskResponse> UpdateTask([FromBody] UpdateTaskRequest updateTaskRequest)
         {
-            _databaseHelper.UpdateTask(task);
-            return NoContent();
+            return Ok(_databaseHelper.UpdateTask(updateTaskRequest));
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("api/tasks/search")]
-        public ActionResult<Task> GetTask(Task task)
+        public ActionResult<GetTaskResponse> GetTask([FromBody] GetTaskRequest getTaskRequest)
         {
-            return Ok(_databaseHelper.GetTask(task));
+            return Ok(_databaseHelper.GetTask(getTaskRequest));
         }
     }
 }

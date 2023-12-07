@@ -1,33 +1,74 @@
 ﻿using Microsoft.Data.SqlClient;
-using Task = Workshop.Example.Api.Models.Task;
+using Microsoft.VisualBasic;
+using Workshop.Example.Api.Models.Requests;
+using Workshop.Example.Api.Models.Responses;
+using static Azure.Core.HttpHeader;
+using Task = Workshop.Example.Api.Models.Common.Task;
 
 namespace Workshop.Example.Api.Helpers
 {
     public class DatabaseHelper
     {
         private readonly IConfiguration _configuration;
+        private const string CREATIONSTATUS = "Created";
 
         public DatabaseHelper(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        public async Task<int> CreateTaskAsync(Task task)
+        public async Task<CreateTaskResponse> CreateTaskAsync(CreateTaskRequest createTaskRequest)
         {
             // Implement DB interaction to create new task
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
             using SqlConnection connection = new(connectionString);
             connection.Open();
 
-            string query = "INSERT INTO Tasks (Title, Description, IsCompleted) OUTPUT INSERTED.ID VALUES (@Title, @Description, @IsCompleted)";
+            string query =  "INSERT INTO Tasks (" +
+                            "   Title, " +
+                            "   Description, " +
+                            "   Assignee, " +
+                            "   AssignmentDate, " +
+                            "   StartDate, " +
+                            "   DueDate, " +
+                            "   CompletionDate, " +
+                            "   Status, " +
+                            "   CompletionPercentage, " +
+                            "   Notes" +
+                            ") " +
+                            "OUTPUT INSERTED.ID " +
+                            "VALUES (" +
+                            "   @Title, " +
+                            "   @Description, " +
+                            "   @Assignee, " +
+                            "   @AssignmentDate, " +
+                            "   @StartDate, " +
+                            "   @DueDate, " +
+                            "   @CompletionDate, " +
+                            "   @Status, " +
+                            "   @CompletionPercentage, " +
+                            "   @Notes" +
+                            ")";
 
             using SqlCommand command = new(query, connection);
-            command.Parameters.AddWithValue("@Title", task.Title);
-            command.Parameters.AddWithValue("@Description", task.Description);
-            command.Parameters.AddWithValue("@IsCompleted", task.IsCompleted);
+            command.Parameters.AddWithValue("@Title", createTaskRequest.Title);
+            command.Parameters.AddWithValue("@Description", createTaskRequest.Description);
+            command.Parameters.AddWithValue("@Assignee", createTaskRequest.Assignee);
+            command.Parameters.AddWithValue("@AssignmentDate", createTaskRequest.AssignmentDate);
+            command.Parameters.AddWithValue("@StartDate", createTaskRequest.StartDate);
+            command.Parameters.AddWithValue("@DueDate", createTaskRequest.DueDate);
+            command.Parameters.AddWithValue("@CompletionDate", createTaskRequest.CompletionDate);
+            command.Parameters.AddWithValue("@Status", CREATIONSTATUS);
+            command.Parameters.AddWithValue("@CompletionPercentage", createTaskRequest.CompletionPercentage);
+            command.Parameters.AddWithValue("@Notes", createTaskRequest.Notes);
 
             object? result = await command.ExecuteScalarAsync();
-            return Convert.ToInt32(result);
+            return new CreateTaskResponse
+            {
+                Id = (int)result,
+                Title = createTaskRequest.Title,
+                Status = CREATIONSTATUS
+            };
         }
 
         public IEnumerable<Task> GetAllTasks()
@@ -50,8 +91,15 @@ namespace Workshop.Example.Api.Helpers
                     {
                         Id = reader.GetInt32(reader.GetOrdinal("Id")),
                         Title = reader.GetString(reader.GetOrdinal("Title")),
-                        Description = reader.GetString(reader.GetOrdinal("Description")),
-                        IsCompleted = reader.GetBoolean(reader.GetOrdinal("IsCompleted"))
+                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? "" : reader.GetString(reader.GetOrdinal("Description")),
+                        Assignee = reader.IsDBNull(reader.GetOrdinal("Assignee")) ? "" : reader.GetString(reader.GetOrdinal("Assignee")),
+                        AssignmentDate = reader.GetDateTime(reader.GetOrdinal("AssignmentDate")),
+                        StartDate = reader.GetDateTime(reader.GetOrdinal("StartDate")),
+                        DueDate = reader.GetDateTime(reader.GetOrdinal("DueDate")),
+                        CompletionDate = reader.GetDateTime(reader.GetOrdinal("CompletionDate")),
+                        Status = reader.GetString(reader.GetOrdinal("Status")),
+                        CompletionPercentage = reader.GetInt32(reader.GetOrdinal("CompletionPercentage")),
+                        Notes = reader.IsDBNull(reader.GetOrdinal("Notes")) ? "" : reader.GetString(reader.GetOrdinal("Notes"))
                     };
                     tasks.Add(task);
                 }
@@ -60,7 +108,7 @@ namespace Workshop.Example.Api.Helpers
             return tasks;
         }
 
-        public void DeleteTask(int id)
+        public DeleteTaskResponse DeleteTask(DeleteTaskRequest deleteTaskRequest)
         {
             // Implement DB interaction to delete a task by id
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
@@ -70,40 +118,54 @@ namespace Workshop.Example.Api.Helpers
             string query = "DELETE FROM Tasks WHERE Id = @Id";
 
             using SqlCommand command = new(query, connection);
-            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Id", deleteTaskRequest.Id);
 
             command.ExecuteNonQuery();
 
+            return new DeleteTaskResponse
+            {
+                Result = true,
+                ResultMessage = $"Task [ID:{deleteTaskRequest.Id}] deleted successfully!",
+                Timestamp = DateTime.Now
+            };
         }
 
-        public void UpdateTask(Task task)
+        public UpdatetaskResponse UpdateTask(UpdateTaskRequest updateTaskRequest)
         {
             // Implement DB interaction to update a task
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
             using SqlConnection connection = new(connectionString);
             connection.Open();
 
-            string query = "UPDATE Tasks SET"; // Title = @Title, Description = @Description, IsCompleted = @IsCompleted WHERE Id = @Id";
+            string query = "UPDATE Tasks SET";
             using SqlCommand command = new(query, connection);
             var updateFields = new List<string>();
-            foreach (var property in task.GetType().GetProperties())
+            foreach (var property in updateTaskRequest.GetType().GetProperties())
             {
-                if (property.Name != "Id")
+                var value = property.GetValue(updateTaskRequest);
+                if (property.Name != "Id" && value != null)
                 {
                     updateFields.Add($"{property.Name} = @{property.Name}");
-                    command.Parameters.AddWithValue($"@{property.Name}", property.GetValue(task));
-
+                    command.Parameters.AddWithValue($"@{property.Name}", value);
                 }
             }
 
             query += " " + string.Join(", ", updateFields);
             query += " WHERE Id = @Id";
+            command.Parameters.AddWithValue("@Id", updateTaskRequest.Id);
             command.CommandText = query;
 
             command.ExecuteNonQuery();
+
+            return new UpdatetaskResponse
+            {
+                Result = true,
+                ResultMessage = $"Task [ID: {updateTaskRequest.Id}] updated successfully!",
+                Timestamp = DateTime.Now
+            };
         }
 
-        public Task GetTask(Task task)
+        public GetTaskResponse GetTask(GetTaskRequest getTaskRequest)
         {
             // Implement DB interaction to get a task by a combination of not null properties of the recieved task
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
@@ -112,9 +174,9 @@ namespace Workshop.Example.Api.Helpers
 
             string query = "SELECT * FROM Tasks WHERE";
             var whereClauses = new List<string>();
-            foreach (var property in task.GetType().GetProperties())
+            foreach (var property in getTaskRequest.GetType().GetProperties())
             {
-                if (property.GetValue(task) != null)
+                if (property.GetValue(getTaskRequest) != null)
                 {
                     whereClauses.Add($"{property.Name} = @{property.Name}");
                 }
@@ -123,24 +185,31 @@ namespace Workshop.Example.Api.Helpers
             query += " " + string.Join(" AND ", whereClauses);
 
             using SqlCommand command = new(query, connection);
-            foreach (var property in task.GetType().GetProperties())
+            foreach (var property in getTaskRequest.GetType().GetProperties())
             {
-                if (property.GetValue(task) != null)
+                if (property.GetValue(getTaskRequest) != null)
                 {
-                    command.Parameters.AddWithValue($"@{property.Name}", property.GetValue(task));
+                    command.Parameters.AddWithValue($"@{property.Name}", property.GetValue(getTaskRequest));
                 }
             }
 
             using SqlDataReader reader = command.ExecuteReader();
-            Task result = new();
+            GetTaskResponse result = new();
             if (reader.HasRows)
             {
                 while (reader.Read())
                 {
                     result.Id = reader.GetInt32(reader.GetOrdinal("Id"));
                     result.Title = reader.GetString(reader.GetOrdinal("Title"));
-                    result.Description = reader.GetString(reader.GetOrdinal("Description"));
-                    result.IsCompleted = reader.GetBoolean(reader.GetOrdinal("IsCompleted"));
+                    result.Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? "" : reader.GetString(reader.GetOrdinal("Description"));
+                    result.Assignee = reader.IsDBNull(reader.GetOrdinal("Assignee")) ? "" : reader.GetString(reader.GetOrdinal("Assignee"));
+                    result.AssignmentDate = reader.GetDateTime(reader.GetOrdinal("AssignmentDate"));
+                    result.StartDate = reader.GetDateTime(reader.GetOrdinal("StartDate"));
+                    result.DueDate = reader.GetDateTime(reader.GetOrdinal("DueDate"));
+                    result.CompletionDate = reader.GetDateTime(reader.GetOrdinal("CompletionDate"));
+                    result.Status = reader.GetString(reader.GetOrdinal("Status"));
+                    result.CompletionPercentage = reader.GetInt32(reader.GetOrdinal("CompletionPercentage"));
+                    result.Notes = reader.IsDBNull(reader.GetOrdinal("Notes")) ? "" : reader.GetString(reader.GetOrdinal("Notes"));
                 }
             }
             reader.Close();
