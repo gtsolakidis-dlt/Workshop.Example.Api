@@ -14,7 +14,7 @@ namespace Workshop.Example.Api.Helpers
 
         public async Task<int> CreateTaskAsync(Task task)
         {
-            // Get the connection string from the configuration
+            // Implement DB interaction to create new task
             string connectionString = _configuration.GetConnectionString("DefaultConnection");
             using SqlConnection connection = new(connectionString);
             connection.Open();
@@ -74,6 +74,77 @@ namespace Workshop.Example.Api.Helpers
 
             command.ExecuteNonQuery();
 
+        }
+
+        public void UpdateTask(Task task)
+        {
+            // Implement DB interaction to update a task
+            string connectionString = _configuration.GetConnectionString("DefaultConnection");
+            using SqlConnection connection = new(connectionString);
+            connection.Open();
+
+            string query = "UPDATE Tasks SET"; // Title = @Title, Description = @Description, IsCompleted = @IsCompleted WHERE Id = @Id";
+            using SqlCommand command = new(query, connection);
+            var updateFields = new List<string>();
+            foreach (var property in task.GetType().GetProperties())
+            {
+                if (property.Name != "Id")
+                {
+                    updateFields.Add($"{property.Name} = @{property.Name}");
+                    command.Parameters.AddWithValue($"@{property.Name}", property.GetValue(task));
+
+                }
+            }
+
+            query += " " + string.Join(", ", updateFields);
+            query += " WHERE Id = @Id";
+            command.CommandText = query;
+
+            command.ExecuteNonQuery();
+        }
+
+        public Task GetTask(Task task)
+        {
+            // Implement DB interaction to get a task by a combination of not null properties of the recieved task
+            string connectionString = _configuration.GetConnectionString("DefaultConnection");
+            using SqlConnection connection = new(connectionString);
+            connection.Open();
+
+            string query = "SELECT * FROM Tasks WHERE";
+            var whereClauses = new List<string>();
+            foreach (var property in task.GetType().GetProperties())
+            {
+                if (property.GetValue(task) != null)
+                {
+                    whereClauses.Add($"{property.Name} = @{property.Name}");
+                }
+            }
+
+            query += " " + string.Join(" AND ", whereClauses);
+
+            using SqlCommand command = new(query, connection);
+            foreach (var property in task.GetType().GetProperties())
+            {
+                if (property.GetValue(task) != null)
+                {
+                    command.Parameters.AddWithValue($"@{property.Name}", property.GetValue(task));
+                }
+            }
+
+            using SqlDataReader reader = command.ExecuteReader();
+            Task result = new();
+            if (reader.HasRows)
+            {
+                while (reader.Read())
+                {
+                    result.Id = reader.GetInt32(reader.GetOrdinal("Id"));
+                    result.Title = reader.GetString(reader.GetOrdinal("Title"));
+                    result.Description = reader.GetString(reader.GetOrdinal("Description"));
+                    result.IsCompleted = reader.GetBoolean(reader.GetOrdinal("IsCompleted"));
+                }
+            }
+            reader.Close();
+            return result;
         }
     }
 }

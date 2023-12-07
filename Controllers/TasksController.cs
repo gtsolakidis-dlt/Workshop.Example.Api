@@ -29,11 +29,26 @@ namespace Workshop.Example.Api.Controllers
         }
 
         [HttpDelete]
-        [Route("api/tasks/delete/{id}")]
+        [Route("api/tasks/delete")]
         public ActionResult<Task> DeleteTask(int id)
         {
             _databaseHelper.DeleteTask(id);
             return NoContent();
+        }
+
+        [HttpPut]
+        [Route("api/tasks/update")]
+        public ActionResult<Task> UpdateTask(Task task)
+        {
+            _databaseHelper.UpdateTask(task);
+            return NoContent();
+        }
+
+        [HttpGet]
+        [Route("api/tasks/search")]
+        public ActionResult<Task> GetTask(Task task)
+        {
+            return Ok(_databaseHelper.GetTask(task));
         }
     }
 }
